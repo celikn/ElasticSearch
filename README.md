@@ -170,3 +170,185 @@ GET _nodes/stats
 }
 
 ```
+
+- Index olusturma (asagida favorite_candy adinda bir index olusturduk) `Syntax : PUT Name-of-the-Index`
+
+```
+PUT favorite_candy
+
+{
+  "acknowledged" : true,
+  "shards_acknowledged" : true,
+  "index" : "favorite_candy"
+} 
+
+```
+
+- Olusturdugumuz index e bir dokuman ekleyelim. 
+
+```
+POST Name-of-the-Index/_doc
+{
+  "field": "value"
+}
+```
+
+Hem post hem put kullanilabilir. Post kullanildiginda elasticsearch automatik olarak id olusturur dokuman icin. POST ardindan index adi ve `_doc` keyword ile birlikte json formatindaki dokumani gonderiyoruz. Bize auto generated id ile donus yapar. 
+
+```
+POST favorite_candy/_doc
+{
+  "first_name": "Lisa",
+  "candy": "Sour Skittles"
+}
+
+{
+  "_index" : "favorite_candy",
+  "_id" : "ohei6IABIUJON3OvB1B7",
+  "_version" : 1,
+  "result" : "created",
+  "_shards" : {
+    "total" : 2,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "_seq_no" : 0,
+  "_primary_term" : 1
+}
+```
+
+```
+PUT Name-of-the-Index/_doc/id-you-want-to-assign-to-this-document
+{
+  "field": "value"
+}
+```
+
+```
+PUT favorite_candy/_doc/1
+{
+  "first_name": "John",
+  "candy": "Starburst"
+}
+
+{
+  "_index" : "favorite_candy",
+  "_id" : "1",
+  "_version" : 1,
+  "result" : "created",
+  "_shards" : {
+    "total" : 2,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "_seq_no" : 1,
+  "_primary_term" : 1
+}
+```
+
+Ozellikle hastalarin oldugu bir veride idlerin autogenerate olmamasi daha anlamli olabilir. 
+
+- Kayitlari okuma `GET Name-of-the-Index/_doc/id-of-the-document-you-want-to-retrieve`
+
+```
+GET favorite_candy/_doc/1
+
+{
+  "_index" : "favorite_candy",
+  "_id" : "1",
+  "_version" : 1,
+  "_seq_no" : 1,
+  "_primary_term" : 1,
+  "found" : true,
+  "_source" : {
+    "first_name" : "John",
+    "candy" : "Starburst"
+  }
+}
+
+```
+
+Bir dokumani mevcut olan bir id ile ekledigimizde
+versiyon 2 olarak geri donus olur ve veri update edilir. Versiyon bir verinin kac kez create,update yada delete oldugunu belirtir. 
+
+```
+PUT favorite_candy/_doc/1
+{
+  "first_name": "John2",
+  "candy": "Starburst2"
+}
+
+{
+  "_index" : "favorite_candy",
+  "_id" : "1",
+  "_version" : 2,
+  "result" : "updated",
+  "_shards" : {
+    "total" : 2,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "_seq_no" : 4,
+  "_primary_term" : 1
+}
+```
+
+Ayni id ye sahip dokumana tekrar get request yaparsak, source bilgisi overwrite yapilmis oldugunu goruruz. Fakat bu pek istenen bir durum degil.
+
+```
+GET favorite_candy/_doc/1
+{
+  "_index" : "favorite_candy",
+  "_id" : "1",
+  "_version" : 2,
+  "_seq_no" : 4,
+  "_primary_term" : 1,
+  "found" : true,
+  "_source" : {
+    "first_name" : "John2",
+    "candy" : "Starburst2"
+  }
+}
+```
+
+Bu yuzden _create keyword unu kullaniriz. 
+
+- Create dokuman 
+
+```
+PUT Name-of-the-Index/_create/id-you-want-to-assign-to-this-document
+{
+  "field": "value"
+}
+```
+
+Mevcut bir id ile dokuman create etmeye calisirsak bize hata mesaji ile donecektir. 
+
+
+```
+PUT favorite_candy/_create/1
+{
+  "first_name": "Finn",
+  "candy": "Jolly Ranchers"
+}
+
+{
+  "error" : {
+    "root_cause" : [
+      {
+        "type" : "version_conflict_engine_exception",
+        "reason" : "[1]: version conflict, document already exists (current version [2])",
+        "index_uuid" : "CtC5ZKxdRt2nNwin9IxemA",
+        "shard" : "0",
+        "index" : "favorite_candy"
+      }
+    ],
+    "type" : "version_conflict_engine_exception",
+    "reason" : "[1]: version conflict, document already exists (current version [2])",
+    "index_uuid" : "CtC5ZKxdRt2nNwin9IxemA",
+    "shard" : "0",
+    "index" : "favorite_candy"
+  },
+  "status" : 409
+}
+```
