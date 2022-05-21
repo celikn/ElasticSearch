@@ -26,7 +26,7 @@ Veriler document olarak Json objesi formatinda tutulur. Her bir document bir uni
 
 Benzer Dokumanlar Indexler halinde grouplanir. 
 
-<img src="Img/DocumentsGroupIntoIndex.png"/>
+<img src="Img/DocumentGroupIntoIndex.png"/>
 
 Bir index birden fazla node a bagli olabilir. Ve ilgili index in bir node icindeki parcasina shard diyoruz.
 <img src="Img/Shard.png"/>
