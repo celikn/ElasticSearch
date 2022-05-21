@@ -311,7 +311,7 @@ GET favorite_candy/_doc/1
 }
 ```
 
-Bu yuzden _create keyword unu kullaniriz. 
+Bu yuzden `_create` keyword unu kullaniriz. 
 
 - Create dokuman 
 
@@ -352,3 +352,111 @@ PUT favorite_candy/_create/1
   "status" : 409
 }
 ```
+
+- Update islemi icin `_update` keyword unu kullaniyoruz.
+
+Mevcut bir veriyi sadece bazi belirli field lari kullanarak guncellemek istiyorsak
+```
+POST Name-of-the-Index/_update/id-of-the-document-you-want-to-update
+{
+  "doc": {
+    "field1": "value",
+    "field2": "value",
+  }
+} 
+```
+
+
+```
+POST favorite_candy/_update/1
+{
+  "doc": {
+    "candy": "M&M's"
+  }
+}
+
+{
+  "_index" : "favorite_candy",
+  "_id" : "1",
+  "_version" : 3,
+  "result" : "updated",
+  "_shards" : {
+    "total" : 2,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "_seq_no" : 5,
+  "_primary_term" : 1
+}
+
+POST favorite_candy/_update/1
+{
+  "doc": {
+    "sonradaneklenenfield": "bisey"
+  }
+}
+
+{
+  "_index" : "favorite_candy",
+  "_id" : "1",
+  "_version" : 4,
+  "result" : "updated",
+  "_shards" : {
+    "total" : 2,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "_seq_no" : 6,
+  "_primary_term" : 1
+}
+
+
+```
+Son durumda hem update etmek istedigimiz fieldlari goruyoruz hem de update ile yeni ekledigimiz fieldlari
+
+```
+GET favorite_candy/_doc/1
+
+{
+  "_index" : "favorite_candy",
+  "_id" : "1",
+  "_version" : 4,
+  "_seq_no" : 6,
+  "_primary_term" : 1,
+  "found" : true,
+  "_source" : {
+    "first_name" : "John2",
+    "candy" : "M&M's",
+    "sonradaneklenenfield" : "bisey"
+  }
+}
+```
+
+Eger bir veriyi silmek istiyorsak `_delete` keyword unu kullaniyoruz. `DELETE Name-of-the-Index/_doc/id-of-the-document-you-want-to-delete`
+
+```
+DELETE favorite_candy/_doc/1
+
+{
+  "_index" : "favorite_candy",
+  "_id" : "1",
+  "_version" : 5,
+  "result" : "deleted",
+  "_shards" : {
+    "total" : 2,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "_seq_no" : 7,
+  "_primary_term" : 1
+}
+
+GET favorite_candy/_doc/1
+
+{
+  "_index" : "favorite_candy",
+  "_id" : "1",
+  "found" : false
+}
+```
+
