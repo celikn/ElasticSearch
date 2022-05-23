@@ -463,6 +463,8 @@ GET favorite_candy/_doc/1
 
 ##Search in ElasticSearch 
 
+- Match Query 
+
 ElasticSearch aramalarindan gelen siralama scoring algorithmalari ile belirleniyor. (precision ve recall)
 
 Bir dokumentin score unu hesaplarken Term Frequency (bir term un dokuman icinde kac kez gectigini) bilgisini kullanir. Fakat en cok term gecen dokuman her zaman en relevant dokuman olmaz.
@@ -1365,3 +1367,424 @@ GET nyc-restaurants/_search
 
 
 ```
+
+- "explain": true  secenegi query score hesaplamasinda kullanilan detaylari gosteriyor. 
+
+```
+...
+"_explanation" : {
+          "value" : 4.0437636,
+          "description" : "weight(violation_description:mice in 23936) [PerFieldSimilarity], result of:",
+          "details" : [
+            {
+              "value" : 4.0437636,
+              "description" : "score(freq=2.0), computed as boost * idf * tf from:",
+              "details" : [
+                {
+                  "value" : 2.2,
+                  "description" : "boost",
+                  "details" : [ ]
+                },
+                {
+                  "value" : 2.6562603,
+                  "description" : "idf, computed as log(1 + (N - n + 0.5) / (n + 0.5)) from:",
+                  "details" : [
+                    {
+                      "value" : 19878,
+                      "description" : "n, number of documents containing term",
+                      "details" : [ ]
+                    },
+                    {
+                      "value" : 283127,
+                      "description" : "N, total number of documents with field",
+                      "details" : [ ]
+                    }
+                  ]
+                },
+                {
+                  "value" : 0.6919782,
+                  "description" : "tf, computed as freq / (freq + k1 * (1 - b + b * dl / avgdl)) from:",
+                  "details" : [
+                    {
+                      "value" : 2.0,
+                      "description" : "freq, occurrences of term within document",
+                      "details" : [ ]
+                    },
+                    {
+                      "value" : 1.2,
+                      "description" : "k1, term saturation parameter",
+                      "details" : [ ]
+                    },
+                    {
+                      "value" : 0.75,
+                      "description" : "b, length normalization parameter",
+                      "details" : [ ]
+                    },
+                    {
+                      "value" : 15.0,
+                      "description" : "dl, length of field",
+                      "details" : [ ]
+                    },
+                    {
+                      "value" : 22.87111,
+                      "description" : "avgdl, average length of field",
+                      "details" : [ ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+```
+
+## Mapping 
+
+Bir index olusturdugumuzda ElasticSearch bizim icin dinamik olarak mapping olusturur. (text ve keyword mapping). 
+
+
+Term listesi ve bulunan document idlerini iceren inverted index tablosu full text searchlerde kullanilir. 
+
+<img src="Img/Text_Type.png"/>
+
+
+Eger keyword olarak mapping type belirtilirse, text full olarak tabloaya eklenir. Sorting, aggregation ve exact search yapildiginda kullanilan tablodur. 
+
+<img src="Img/Keyword_Type.png"/>
+
+
+<img src="Img/Text_Keyword.png"/>
+
+
+ Ozellikle sort, aggregation yada exact search yapmayacagimiz fieldlarda keyword olusturmasi diskte ek veri tutmamiza ve sorgularda yavaslamaya yol acabilmekte. 
+
+ Bu yuzden kendi mapping imizi hazirlamamiz gerekiyor. Mapping bir kere olusturuldugunda olusturulan field lar icin degistirilemiyor fakat yeni field eklenebiliyor. 
+
+-- difference between term and match query
+
+Term query bir field icinde bire bir bulunan degerleri doner. Text field larinda term query kacinilmalidir. Cunku cogu zaman exact term bulunamaz. Bu yuzden text field tipinde olan fieldlarda match query yapilmali. 
+
+
+```
+GET nyc-restaurants/_search
+{
+  "size": 1, 
+  "query": {
+    "term": {
+     "_id": {
+        "value": "50115682",
+        "boost": 1.0
+      }
+    }
+  }
+}
+```
+
+Ayrica text field lari match ile analiz edilirken puctuationlar kaldirilir ve aranan kelimeler lowercase token lara cevrilir. 
+
+
+Yeni bir index i mapping ile birlikte bir index olusturalim. Sadece text property olsun. 
+
+
+```
+PUT my-index-000001
+{
+  "mappings": {
+    "properties": {
+      "full_text": { "type": "text" }
+    }
+  }
+}
+
+
+{
+  "acknowledged" : true,
+  "shards_acknowledged" : true,
+  "index" : "my-index-000001"
+}
+```
+
+```
+PUT my-index-000001/_doc/1
+{
+  "full_text":   "Quick Brown Foxes!"
+}
+
+{
+  "_index" : "my-index-000001",
+  "_id" : "1",
+  "_version" : 1,
+  "result" : "created",
+  "_shards" : {
+    "total" : 2,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "_seq_no" : 0,
+  "_primary_term" : 1
+}
+
+```
+
+
+Term query uyguladigimizda 0 hit aliriz. 
+
+```
+GET my-index-000001/_search?pretty
+{
+  "query": {
+    "term": {
+      "full_text": "Quick Brown Foxes!"
+    }
+  }
+}
+
+{
+  "took" : 1,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : {
+      "value" : 0,
+      "relation" : "eq"
+    },
+    "max_score" : null,
+    "hits" : [ ]
+  }
+}
+
+
+
+```
+
+Match query uyguladigimizda ise donus aliriz. 
+
+```
+GET my-index-000001/_search?pretty
+{
+  "query": {
+    "match": {
+      "full_text": "Quick Brown Foxes!"
+    }
+  }
+}
+
+
+{
+  "took" : 2,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : {
+      "value" : 1,
+      "relation" : "eq"
+    },
+    "max_score" : 0.8630463,
+    "hits" : [
+      {
+        "_index" : "my-index-000001",
+        "_id" : "1",
+        "_score" : 0.8630463,
+        "_source" : {
+          "full_text" : "Quick Brown Foxes!"
+        }
+      }
+    ]
+  }
+}
+```
+
+
+Eger default dinamik mapping ile veri girmek istersek; her bir field icin hem text hem keyword olusturur (date ve location haric). 
+
+
+```
+PUT nyc-restaurants2/_doc/1
+{
+"name" : "STARBUCKS COFFEE #678 HUDSON",
+ "borough" : "Manhattan",
+          "cuisine" : "Coffee/Tea",
+          "grade" : "A",
+          "violation" : "10F",
+          "violation_description" : "Non-food contact surface improperly constructed. Unacceptable material used. Non-food contact surface or equipment improperly maintained and/or not properly sealed, raised, spaced or movable to allow accessibility for cleaning on all sides, above and underneath the unit.",
+          "inspection_date" : "2022-05-04",
+          "location" : {
+            "lat" : 40.740502128064,
+            "lon" : -74.005182035446
+  }  
+}
+
+{
+  "nyc-restaurants2" : {
+    "mappings" : {
+      "properties" : {
+        "borough" : {
+          "type" : "text",
+          "fields" : {
+            "keyword" : {
+              "type" : "keyword",
+              "ignore_above" : 256
+            }
+          }
+        },
+        "cuisine" : {
+          "type" : "text",
+          "fields" : {
+            "keyword" : {
+              "type" : "keyword",
+              "ignore_above" : 256
+            }
+          }
+        },
+        "grade" : {
+          "type" : "text",
+          "fields" : {
+            "keyword" : {
+              "type" : "keyword",
+              "ignore_above" : 256
+            }
+          }
+        },
+        "inspection_date" : {
+          "type" : "date"
+        },
+        "location" : {
+          "properties" : {
+            "lat" : {
+              "type" : "float"
+            },
+            "lon" : {
+              "type" : "float"
+            }
+          }
+        },
+        "name" : {
+          "type" : "text",
+          "fields" : {
+            "keyword" : {
+              "type" : "keyword",
+              "ignore_above" : 256
+            }
+          }
+        },
+        "violation" : {
+          "type" : "text",
+          "fields" : {
+            "keyword" : {
+              "type" : "keyword",
+              "ignore_above" : 256
+            }
+          }
+        },
+        "violation_description" : {
+          "type" : "text",
+          "fields" : {
+            "keyword" : {
+              "type" : "keyword",
+              "ignore_above" : 256
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+Daha once olusturdugumuz mapping de cuisine keyword tipinde belirlenmisti. Keyword tipindeki bir field icinden term aradigimizda hits listesi bos doner. 
+
+```
+GET nyc-restaurants/_search?pretty
+{
+  "query": {
+    "match": {
+      "cuisine": "Coffee"
+    }
+  }
+}
+
+{
+  "took" : 0,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : {
+      "value" : 0,
+      "relation" : "eq"
+    },
+    "max_score" : null,
+    "hits" : [ ]
+  }
+}
+
+```
+```
+GET nyc-restaurants2/_search?pretty
+{
+  "query": {
+    "match": {
+      "cuisine": "Coffee"
+    }
+  }
+}
+
+{
+  "took" : 1,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : {
+      "value" : 1,
+      "relation" : "eq"
+    },
+    "max_score" : 0.2876821,
+    "hits" : [
+      {
+        "_index" : "nyc-restaurants2",
+        "_id" : "1",
+        "_score" : 0.2876821,
+        "_ignored" : [
+          "violation_description.keyword"
+        ],
+        "_source" : {
+          "name" : "STARBUCKS COFFEE #678 HUDSON",
+          "borough" : "Manhattan",
+          "cuisine" : "Coffee/Tea",
+          "grade" : "A",
+          "violation" : "10F",
+          "violation_description" : "Non-food contact surface improperly constructed. Unacceptable material used. Non-food contact surface or equipment improperly maintained and/or not properly sealed, raised, spaced or movable to allow accessibility for cleaning on all sides, above and underneath the unit.",
+          "inspection_date" : "2022-05-04",
+          "location" : {
+            "lat" : 40.740502128064,
+            "lon" : -74.005182035446
+          }
+        }
+      }
+    ]
+  }
+}
+
+```
+
+
