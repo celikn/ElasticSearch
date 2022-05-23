@@ -51,7 +51,7 @@ def create_index(client):
             "mappings": {
                 "properties": {
                     "name": {"type": "text"},
-                    "borough": {"type": "keyword"},
+                    "borough": {"type": "keyword"},  
                     "cuisine": {"type": "keyword"},
                     "grade": {"type": "keyword"},
                     "location": {"type": "geo_point"},
