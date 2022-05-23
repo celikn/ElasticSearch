@@ -850,4 +850,518 @@ GET nyc-restaurants/_search
 
 ```
 
+- partial terms - wildcard ve regex ornegi
 
+```
+GET  nyc-restaurants/_search
+{
+  "query": {
+
+     "bool": {
+      "must": [
+        {
+          "wildcard": {
+            "violation_description": {
+              "value": "*acceptable"
+            }
+          }
+          
+        },
+        {
+          "wildcard": {
+            "cuisine": {
+              "value": "Japan*"
+            }
+          }
+          
+        }, 
+        {
+           "regexp" : {
+            "name" : "[a-z]*kitchen"
+        }
+        }
+       
+      ],
+      "must_not": [
+        {
+          "term": {
+            "violation_description": {
+              "value": ""
+            }
+          }
+        }
+     ]
+     }
+    },
+    "_source": ["name","grade","violation_description"]
+}
+
+
+{
+  "took" : 5,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : {
+      "value" : 1,
+      "relation" : "eq"
+    },
+    "max_score" : 3.0,
+    "hits" : [
+      {
+        "_index" : "nyc-restaurants",
+        "_id" : "50117761",
+        "_score" : 3.0,
+        "_ignored" : [
+          "violation_description.keyword"
+        ],
+        "_source" : {
+          "grade" : "N",
+          "name" : "MOMO TEST KITCHEN",
+          "violation_description" : "Non-food contact surface improperly constructed. Unacceptable material used. Non-food contact surface or equipment improperly maintained and/or not properly sealed, raised, spaced or movable to allow accessibility for cleaning on all sides, above and underneath the unit."
+        }
+      }
+    ]
+  }
+}
+
+```
+
+- match phrase - query yapilan sozcukler ayni order da bulunmali (arada fazla bosluk yada karakter olmasi olmasi etkilemiyor)
+
+```
+GET nyc-restaurants/_search
+{
+   "track_total_hits": true,
+   "size":2,
+    "query": {
+         "match_phrase": {
+            "violation_description":"contact surface"
+      }
+    },
+    "_source": ["name"]
+}
+
+{
+  "took" : 23,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : {
+      "value" : 6625,
+      "relation" : "eq"
+    },
+    "max_score" : 3.8637352,
+    "hits" : [
+      {
+        "_index" : "nyc-restaurants",
+        "_id" : "50112711",
+        "_score" : 3.8637352,
+        "_source" : {
+          "name" : "PUPUSERIA IZALCO RESTAURANT"
+        }
+      },
+      {
+        "_index" : "nyc-restaurants",
+        "_id" : "50118281",
+        "_score" : 3.8637352,
+        "_source" : {
+          "name" : "NOSTRAND AVE PIZZA"
+        }
+      }
+    ]
+  }
+}
+
+```
+
+
+- range query time (veri string olarak atildiginda zamana gore range query hits bos donmekte)
+```
+GET nyc-restaurants/_search
+{
+    "query": {
+        "range" : {
+            "inspection_date": {
+                "gte": "2010-01-01",
+                "lte": "2015-12-31"
+            }
+        }
+    },
+    "_source" : ["name","inspection_date"]
+}
+
+
+{
+  "took" : 3,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : {
+      "value" : 6,
+      "relation" : "eq"
+    },
+    "max_score" : 1.0,
+    "hits" : [
+      {
+        "_index" : "nyc-restaurants",
+        "_id" : "50017716",
+        "_score" : 1.0,
+        "_ignored" : [
+          "violation_description.keyword"
+        ],
+        "_source" : {
+          "name" : "TSION CAFE & BAKERY",
+          "inspection_date" : "2015-12-23"
+        }
+      },
+      {
+        "_index" : "nyc-restaurants",
+        "_id" : "40482599",
+        "_score" : 1.0,
+        "_source" : {
+          "name" : "SCHOENFIELD",
+          "inspection_date" : "2015-11-20"
+        }
+      },
+      {
+        "_index" : "nyc-restaurants",
+        "_id" : "41412172",
+        "_score" : 1.0,
+        "_source" : {
+          "name" : "EAT-A-BAGEL (JOHN A NOBLE FERRY BOAT)",
+          "inspection_date" : "2013-06-07"
+        }
+      },
+      {
+        "_index" : "nyc-restaurants",
+        "_id" : "50015538",
+        "_score" : 1.0,
+        "_source" : {
+          "name" : "AMERICAN AIRLINES THEATER",
+          "inspection_date" : "2015-11-19"
+        }
+      },
+      {
+        "_index" : "nyc-restaurants",
+        "_id" : "50015171",
+        "_score" : 1.0,
+        "_source" : {
+          "name" : "NEW AMSTERDAM THEATER",
+          "inspection_date" : "2015-11-20"
+        }
+      },
+      {
+        "_index" : "nyc-restaurants",
+        "_id" : "41611709",
+        "_score" : 1.0,
+        "_source" : {
+          "name" : "EQUESTRIS",
+          "inspection_date" : "2015-12-12"
+        }
+      }
+    ]
+  }
+}
+```
+
+- geoquery geo_distance ile merkez noktasindan belirli bir uzakliktaki verileri, geo_bounding_box rectangle icerisindeki verileri, geo_polygon, bir poligon icindekileri getirmemizi saglar.
+geo_shape ise within yerine, intersect yada do not intesect query si yapmamizi sagliyor. 
+
+```
+GET nyc-restaurants/_search
+{
+  "size": 2, 
+  "query": {
+    "bool": {
+      "must": {
+        "match_all": {}
+      },
+      "filter": {
+        "geo_distance": {
+          "distance": "300m",
+          "location": {
+            "lat": 40.7405,
+            "lon": -74.005
+          }
+        }
+      }
+    }
+  },
+  "_source": ["name","location"]
+}
+
+{
+  "took" : 8,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : {
+      "value" : 131,
+      "relation" : "eq"
+    },
+    "max_score" : 1.0,
+    "hits" : [
+      {
+        "_index" : "nyc-restaurants",
+        "_id" : "50103188",
+        "_score" : 1.0,
+        "_ignored" : [
+          "violation_description.keyword"
+        ],
+        "_source" : {
+          "name" : "STARBUCKS COFFEE #678 HUDSON",
+          "location" : {
+            "lon" : -74.005182035446,
+            "lat" : 40.740502128064
+          }
+        }
+      },
+      {
+        "_index" : "nyc-restaurants",
+        "_id" : "50117118",
+        "_score" : 1.0,
+        "_source" : {
+          "name" : "LA DEVOZIONE",
+          "location" : {
+            "lon" : -74.004713006739,
+            "lat" : 40.741869040229
+          }
+        }
+      }
+    ]
+  }
+```
+
+##Aggregation  
+
+Veriyi ozetleyen metric ve istatistikleri olusturmamizi sagliyor. 
+
+Sorgu aggregation kisminda ilgi belirtilen field e gore buckets icerisinde dokuman sayisini verir. 
+
+```
+GET nyc-restaurants/_search
+{
+  "aggs": {
+    "by_category": {
+      "terms": {
+        "field": "cuisine",
+        "size": 100
+      }
+    }
+  }
+}
+
+...
+"aggregations" : {
+    "by_category" : {
+      "doc_count_error_upper_bound" : 0,
+      "sum_other_doc_count" : 9984,
+      "buckets" : [
+        {
+          "key" : "American",
+          "doc_count" : 4797
+        },
+        {
+          "key" : "",
+          "doc_count" : 4017
+        },
+        {
+          "key" : "Chinese",
+          "doc_count" : 2151
+        },
+        {
+          "key" : "Coffee/Tea",
+          "doc_count" : 1715
+        },
+        {
+          "key" : "Pizza",
+          "doc_count" : 1536
+        },
+        {
+          "key" : "Italian",
+          "doc_count" : 947
+        },
+        {
+          "key" : "Japanese",
+          "doc_count" : 852
+        },
+        {
+          "key" : "Mexican",
+          "doc_count" : 827
+        },
+        {
+          "key" : "Latin American",
+          "doc_count" : 789
+        },
+        {
+          "key" : "Bakery Products/Desserts",
+          "doc_count" : 772
+        }
+      ]
+...
+
+```
+
+- Query ve aggration kombinasyonlari
+
+```
+GET nyc-restaurants/_search
+{
+  "query": {
+    "bool": {
+      "must": {
+        "match_all": {}
+      },
+      "filter": {
+        "geo_distance": {
+          "distance": "300m",
+          "location": {
+            "lat": 40.7405,
+            "lon": -74.005
+          }
+        }
+      }
+    }
+  },
+  
+  "aggs": {
+    "by_category": {
+      "terms": {
+        "field": "cuisine",
+        "size": 10
+      }
+    }
+  }
+}
+
+
+
+{
+  "took" : 15,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : {
+      "value" : 131,
+      "relation" : "eq"
+    },
+    "max_score" : 1.0,
+    "hits" : [
+      {
+        "_index" : "nyc-restaurants",
+        "_id" : "50103188",
+        "_score" : 1.0,
+        "_ignored" : [
+          "violation_description.keyword"
+        ],
+        "_source" : {
+          "name" : "STARBUCKS COFFEE #678 HUDSON",
+          "borough" : "Manhattan",
+          "cuisine" : "Coffee/Tea",
+          "grade" : "A",
+          "violation" : "10F",
+          "violation_description" : "Non-food contact surface improperly constructed. Unacceptable material used. Non-food contact surface or equipment improperly maintained and/or not properly sealed, raised, spaced or movable to allow accessibility for cleaning on all sides, above and underneath the unit.",
+          "inspection_date" : "2022-05-04",
+          "location" : {
+            "lat" : 40.740502128064,
+            "lon" : -74.005182035446
+          }
+        }
+      }
+    ]
+  },
+  "aggregations" : {
+    "by_category" : {
+      "doc_count_error_upper_bound" : 0,
+      "sum_other_doc_count" : 30,
+      "buckets" : [
+        {
+          "key" : "American",
+          "doc_count" : 40
+        },
+        {
+          "key" : "",
+          "doc_count" : 16
+        },
+        {
+          "key" : "Coffee/Tea",
+          "doc_count" : 8
+        },
+        {
+          "key" : "Italian",
+          "doc_count" : 7
+        },
+        {
+          "key" : "Bakery Products/Desserts",
+          "doc_count" : 6
+        },
+        {
+          "key" : "French",
+          "doc_count" : 6
+        },
+        {
+          "key" : "Pizza",
+          "doc_count" : 6
+        },
+        {
+          "key" : "Asian/Asian Fusion",
+          "doc_count" : 4
+        },
+        {
+          "key" : "Chinese",
+          "doc_count" : 4
+        },
+        {
+          "key" : "Mexican",
+          "doc_count" : 4
+        }
+      ]
+    }
+  }
+}
+
+```
+Precision arttirmak icin query yapilan birden fazla kelimeyi "operator":"and" parametresi ile arayabiliriz. 
+```
+
+GET nyc-restaurants/_search
+{
+  "size": 3, 
+  "query": {
+    "match": {
+      "violation_description": {
+        "query": "mice cockroach",
+        "operator": "and"
+      }
+    }
+  }
+}
+
+
+```

@@ -12,7 +12,7 @@ import tqdm
 import urllib3
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import streaming_bulk
-
+import datetime
 
 NYC_RESTAURANTS = (
     "https://data.cityofnewyork.us/api/views/43nn-pn8j/rows.csv?accessType=DOWNLOAD"
@@ -79,7 +79,7 @@ def generate_actions():
                 "grade": row["GRADE"] or None,
                 "violation":row["VIOLATION CODE"],
                 "violation_description":row["VIOLATION DESCRIPTION"],
-                "inspection_date":row["INSPECTION DATE"]
+                "inspection_date":datetime.datetime.strptime(row["INSPECTION DATE"],'%m/%d/%Y').date()
             }
 
             lat = row["Latitude"]
