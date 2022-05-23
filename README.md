@@ -460,3 +460,394 @@ GET favorite_candy/_doc/1
 }
 ```
 
+
+##Search in ElasticSearch 
+
+ElasticSearch aramalarindan gelen siralama scoring algorithmalari ile belirleniyor. (precision ve recall)
+
+Bir dokumentin score unu hesaplarken Term Frequency (bir term un dokuman icinde kac kez gectigini) bilgisini kullanir. Fakat en cok term gecen dokuman her zaman en relevant dokuman olmaz.
+
+
+Default algoritma :  Practical Scoring Algoritmasi 
+
+Term Frequency (tf): bir term un dokuman field inde gorunme sayisinin karekoku. (Bir term ne kadar cok varsa o kadar relevant oldugunu varsayar.)
+
+```
+tf = sqrt(termFreq)
+```
+
+Inverse Document Frequency (IDF): toplam belge saysinin  term i iceren belge sayisina bolumunun log degerini alir. Bir term ne kadar cok dokumanda geciyorsa o term o kadar az onemlidir varsayimi yapmis oluruz.
+
+```
+idf = 1 + ln(maxDocs/(docFreq + 1))
+```
+
+Coordination (coord):sorguda istenen terim lerin gelen dokumandaki sayisidir. Query termlerinin hepsi iceren dokuman bazilarini icerenlere gore daha fazla scora sahip olacaktir. 
+
+Field length normalization (norm): terimlerin sayisinin karekokunun tersidir. 
+
+```
+norm = 1/sqrt(numFieldTerms)
+```
+
+Query normalization (queryNorm): 
+
+Index boost: bir alandaki (field) score u arttirmak icin kullanilan sayidir. 
+
+Query boost: bir sorgu tumcesi (query clause) score unu arttirmak icin kullanilan sayidir. 
+
+.... 
+
+- Bir field icinde arama, match query type inin icerisine ilgili field ve aramak istedigim term i yaziyoruz.
+
+```
+GET nyc-restaurants/_search
+{
+  "track_total_hits": true,
+  "size": 2,
+   "query" : {
+      "match" : {
+         "violation_description" : "Harborage"
+      }
+   }
+}
+{
+  "took" : 2,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : {
+      "value" : 2281,
+      "relation" : "eq"
+    },
+    "max_score" : 2.3678188,
+    "hits" : [
+      {
+        "_index" : "nyc-restaurants",
+        "_id" : "50111367",
+        "_score" : 2.3678188,
+        "_source" : {
+          "name" : "COLUMBUS CEAFOOD",
+          "borough" : "Manhattan",
+          "cuisine" : "Seafood",
+          "grade" : "A",
+          "violation" : "08A",
+          "violation_description" : "Facility not vermin proof. Harborage or conditions conducive to attracting vermin to the premises and/or allowing vermin to exist.",
+          "inspection_date" : "12/09/2021",
+          "location" : {
+            "lat" : 40.798059538144,
+            "lon" : -73.963719548682
+          }
+        }
+      }
+    ]
+  }
+}
+```
+
+- birden fazla field icinde arama , multi_match  search tipinde fieldleri liste olarak belirtiyoruz. 
+
+```
+GET nyc-restaurants/_search
+{
+  "track_total_hits": true,
+  "size": 2,
+  "query": {
+    "multi_match": {
+      "query": "San",
+      "fields": ["name", "cuisine"]
+    }
+  }
+}
+```
+
+
+- tum fieldlerde arama , bu durumda multi_match query tipini kullaniyoruz. 
+
+```
+GET nyc-restaurants/_search
+{
+  "track_total_hits": true,
+  "size": 10,
+   "query": {
+    "multi_match": {
+      "query": "test"
+    }
+  }
+}
+
+
+{
+  "took" : 1,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : {
+      "value" : 2,
+      "relation" : "eq"
+    },
+    "max_score" : 12.922431,
+    "hits" : [
+      {
+        "_index" : "nyc-restaurants",
+        "_id" : "50111769",
+        "_score" : 12.922431,
+        "_source" : {
+          "name" : "TEST KITCHEN",
+          "borough" : "Manhattan",
+          "cuisine" : "",
+          "grade" : null,
+          "violation" : "",
+          "violation_description" : "",
+          "inspection_date" : "01/01/1900",
+          "location" : {
+            "lat" : 40.714521963959,
+            "lon" : -74.015677098865
+          }
+        }
+      },
+      {
+        "_index" : "nyc-restaurants",
+        "_id" : "50117761",
+        "_score" : 11.023067,
+        "_ignored" : [
+          "violation_description.keyword"
+        ],
+        "_source" : {
+          "name" : "MOMO TEST KITCHEN",
+          "borough" : "Brooklyn",
+          "cuisine" : "Japanese",
+          "grade" : "N",
+          "violation" : "10F",
+          "violation_description" : "Non-food contact surface improperly constructed. Unacceptable material used. Non-food contact surface or equipment improperly maintained and/or not properly sealed, raised, spaced or movable to allow accessibility for cleaning on all sides, above and underneath the unit.",
+          "inspection_date" : "01/28/2022",
+          "location" : {
+            "lat" : 40.646052086828,
+            "lon" : -74.024096817066
+          }
+        }
+      }
+    ]
+  }
+}
+```
+- bool query  Elasticsearch must AND, should OR, must-not NOT olarak yaziliyor. 
+
+
+
+Ornegin asagidaki sorguda, ilce  Manhattan ve cuisine Japanise olan ve B grade restorantlardan, violation description icerisinde sanitization mice food olamayanlari getiriyoruz. 
+
+```
+GET nyc-restaurants/_search
+{
+   "track_total_hits": true,
+  "query": {
+    "bool": {
+      "must": [
+      {
+          "bool": {
+            "must": [
+              {
+                "match": {
+                  "borough": "Manhattan"
+                }
+              },
+              {
+                "match": {
+                  "cuisine": "Japanese"
+                }
+              },
+              {
+                "match": {
+                  "grade": "B"
+                }
+              }
+            ]
+          }
+        }
+     ],
+      "must_not": [
+        {
+          "bool": {
+            
+            "should": [
+             
+              {
+                "match": {
+                  "violation_description":"sanitization mice food"
+                }
+                
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+
+
+
+{
+  "took" : 5,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : {
+      "value" : 4,
+      "relation" : "eq"
+    },
+    "max_score" : 6.3899126,
+    "hits" : [
+      {
+        "_index" : "nyc-restaurants",
+        "_id" : "50071943",
+        "_score" : 6.3899126,
+        "_source" : {
+          "name" : "RAKU RESTAURANT",
+          "borough" : "Manhattan",
+          "cuisine" : "Japanese",
+          "grade" : "B",
+          "violation" : "09B",
+          "violation_description" : "Thawing procedures improper.",
+          "inspection_date" : "09/05/2019",
+          "location" : {
+            "lat" : 40.727313618727,
+            "lon" : -74.002738428623
+          }
+        }
+      },
+      {
+        "_index" : "nyc-restaurants",
+        "_id" : "41689018",
+        "_score" : 6.3899126,
+        "_source" : {
+          "name" : "COCORON",
+          "borough" : "Manhattan",
+          "cuisine" : "Japanese",
+          "grade" : "B",
+          "violation" : "08A",
+          "violation_description" : "Facility not vermin proof. Harborage or conditions conducive to attracting vermin to the premises and/or allowing vermin to exist.",
+          "inspection_date" : "07/09/2018",
+          "location" : {
+            "lat" : 40.720739838674,
+            "lon" : -73.995295708372
+          }
+        }
+      },
+      {
+        "_index" : "nyc-restaurants",
+        "_id" : "40951329",
+        "_score" : 6.3899126,
+        "_source" : {
+          "name" : "TAKAHACHI TRIBECA",
+          "borough" : "Manhattan",
+          "cuisine" : "Japanese",
+          "grade" : "B",
+          "violation" : "06F",
+          "violation_description" : "Wiping cloths soiled or not stored in sanitizing solution.",
+          "inspection_date" : "03/01/2022",
+          "location" : {
+            "lat" : 40.716424879968,
+            "lon" : -74.008015534265
+          }
+        }
+      },
+      {
+        "_index" : "nyc-restaurants",
+        "_id" : "40911251",
+        "_score" : 6.3899126,
+        "_source" : {
+          "name" : "SUSHI SEKI",
+          "borough" : "Manhattan",
+          "cuisine" : "Japanese",
+          "grade" : "B",
+          "violation" : "08A",
+          "violation_description" : "Facility not vermin proof. Harborage or conditions conducive to attracting vermin to the premises and/or allowing vermin to exist.",
+          "inspection_date" : "06/28/2017",
+          "location" : {
+            "lat" : 40.761816699614,
+            "lon" : -73.960360575653
+          }
+        }
+      }
+    ]
+  }
+}
+
+
+```
+
+- dogru yazilmamis search termleri getirmek icin fuzzy query kullanilabilir. Asagidaki query de violation ve name field larinda RSTAUANT gecen termleri aradigimizda (_source ile sadece result icinde gecmesini istedigimiz field olarak "name" belirttik) bize 2627 sonuc donecektir. fuzziness parametresi kaldirildiginda hits listesi bos donecektir. 
+
+
+```
+GET nyc-restaurants/_search
+{
+   "track_total_hits": true,
+   "size":2,
+    "query": {
+        "multi_match" : {
+            "query" : "RSTAURANT",
+            "fields": ["violation", "name"],
+            "fuzziness": "AUTO"
+        }
+    },
+    "_source": ["name"]
+}
+
+{
+  "took" : 12,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : {
+      "value" : 2627,
+      "relation" : "eq"
+    },
+    "max_score" : 2.0502763,
+    "hits" : [
+      {
+        "_index" : "nyc-restaurants",
+        "_id" : "50093483",
+        "_score" : 2.0502763,
+        "_source" : {
+          "name" : "RESTAURANT"
+        }
+      },
+      {
+        "_index" : "nyc-restaurants",
+        "_id" : "50118538",
+        "_score" : 1.6969975,
+        "_source" : {
+          "name" : "347 RESTAURANT"
+        }
+      }
+    ]
+  }
+}
+
+
+```
+
+
