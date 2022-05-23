@@ -77,6 +77,9 @@ def generate_actions():
                 "borough": row["BORO"],
                 "cuisine": row["CUISINE DESCRIPTION"],
                 "grade": row["GRADE"] or None,
+                "violation":row["VIOLATION CODE"],
+                "violation_description":row["VIOLATION DESCRIPTION"],
+                "inspection_date":row["INSPECTION DATE"]
             }
 
             lat = row["Latitude"]
