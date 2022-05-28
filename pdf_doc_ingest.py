@@ -61,20 +61,6 @@ def createIndexMapping(indexName):
     return client
 
 
-class ElasticModel:
-    name = ""
-    description = ""
-    location=""
-    content=""
-    doc_type=""
-
-    def toJSON(self):
-        return json.dumps(self, default=lambda o: o.__dict__, 
-            sort_keys=True, indent=4)
-
-
-
-
 
 def readPDF(path):
     with open(path, "rb") as f:
